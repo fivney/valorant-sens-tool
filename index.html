@@ -66,14 +66,21 @@ input{padding:8px;background:#111;border:1px solid var(--border);color:#fff;bord
 <div class="result-box" id="baseResult"></div>
 </div>
 
-<!-- 自测面板【修复准星】 -->
+<!-- 自测面板【完整版靶场】 -->
 <div class="panel show" id="test">
 <h2>五维瞄准自测训练场</h2>
-<p class="info-text">点击画布锁定鼠标，完成5项测试；仅电脑端可用</p >
+<p class="info-text">点击画布锁定鼠标，完成5项测试；仅电脑端可用，ESC解除鼠标锁定</p >
 <canvas id="gameCanvas" width="820" height="460"></canvas>
 <div style="margin-top:10px">
 <button class="btn" onclick="startTest()">开始整套测试</button>
 <button class="btn gray" onclick="resetTest()">重置测试分数</button>
+<select id="testMode">
+<option value="turn">1.转身校准测试</option>
+<option value="track">2.持续跟枪测试</option>
+<option value="flick">3.急停定位测试</option>
+<option value="switch">4.多目标转移测试</option>
+<option value="spray">5.压枪模拟测试</option>
+</select>
 </div>
 <p id="testTip" class="info-text">测试启动，请点击画布锁定鼠标</p >
 <div class="result-box" id="testResult"></div>
@@ -123,50 +130,107 @@ tabs.forEach(t=>{
     }
 })
 
-// ========== 画布&准星核心修复代码 ==========
+// 画布核心
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let pointerLocked = false;
 let mouseX = canvas.width/2;
 let mouseY = canvas.height/2;
+let targets = [];
+let testMode = "turn";
 
-// 固定准星绘制函数
-function drawCrosshair(){
+// 切换测试模式
+document.getElementById("testMode").onchange = function(){
+    testMode = this.value;
+    spawnTargets();
+}
+
+// 生成对应测试靶子
+function spawnTargets(){
+    targets = [];
+    const w = canvas.width;
+    const h = canvas.height;
+    if(testMode === "turn"){
+        targets.push({x:100,y:h/2,r:12});
+        targets.push({x:w-100,y:h/2,r:12});
+    }else if(testMode === "track"){
+        targets.push({x:w/2,y:h/2,r:14,vx:1.2,vy:0});
+    }else if(testMode === "flick"){
+        targets.push({x:150,y:120,r:12});
+        targets.push({x:w-150,y:h-120,r:12});
+    }else if(testMode === "switch"){
+        targets.push({x:120,y:100,r:11});
+        targets.push({x:w-120,y:100,r:11});
+        targets.push({x:120,y:h-100,r:11});
+        targets.push({x:w-120,y:h-100,r:11});
+    }else if(testMode === "spray"){
+        targets.push({x:w/2,y:h/2,r:16});
+    }
+}
+
+// 渲染画面
+function draw(){
+    // 背景
     ctx.fillStyle="#090911";
     ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // 更新移动靶
+    targets.forEach(t=>{
+        if(t.vx){
+            t.x += t.vx;
+            if(t.x<50 || t.x>canvas.width-50) t.vx *= -1;
+        }
+        //绘制靶子
+        ctx.beginPath();
+        ctx.arc(t.x,t.y,t.r,0,Math.PI*2);
+        ctx.fillStyle="#ff4655";
+        ctx.fill();
+    })
+
+    //绘制十字准星
     ctx.fillStyle="#ffffff";
-    // 十字准星
     ctx.fillRect(mouseX-10,mouseY-1,20,2);
     ctx.fillRect(mouseX-1,mouseY-10,2,20);
 }
 
-// 鼠标锁定监听
+// 鼠标锁定
 canvas.addEventListener('click',()=>{
     canvas.requestPointerLock();
 })
 document.addEventListener('pointerlockchange',()=>{
     pointerLocked = document.pointerLockElement === canvas;
-    document.getElementById("testTip").innerText = pointerLocked ? "鼠标已锁定，开始瞄准测试" : "鼠标已解除锁定，请点击画布重新锁定";
+    document.getElementById("testTip").innerText = pointerLocked ? "鼠标已锁定，开始瞄准测试（ESC解锁）" : "鼠标已解除锁定，请点击画布重新锁定";
 })
 
-// 鼠标移动追踪
+//鼠标移动
 document.addEventListener('mousemove',(e)=>{
     if(!pointerLocked) return;
     mouseX += e.movementX;
     mouseY += e.movementY;
-    // 边界限制
     mouseX = Math.max(0,Math.min(canvas.width,mouseX));
     mouseY = Math.max(0,Math.min(canvas.height,mouseY));
 })
 
-// 持续渲染
+//鼠标点击命中检测
+canvas.addEventListener("mousedown",()=>{
+    if(!pointerLocked) return;
+    targets.forEach(t=>{
+        const dist = Math.hypot(mouseX-t.x,mouseY-t.y);
+        if(dist < t.r){
+            t.r = 0;
+        }
+    })
+})
+
+//循环渲染
 function loop(){
-    drawCrosshair();
+    draw();
     requestAnimationFrame(loop);
 }
+spawnTargets();
 loop();
 
-// ========== 基础功能函数 ==========
+// ==========工具函数==========
 function calcEDPI(){
     const dpi = Number(document.getElementById('dpi').value);
     const sens = Number(document.getElementById('sens').value);
@@ -179,10 +243,12 @@ function calcEDPI(){
 }
 
 function startTest(){
-    document.getElementById("testTip").innerText="点击画布锁定鼠标，正式开始五维测试";
+    spawnTargets();
+    document.getElementById("testTip").innerText="点击画布锁定鼠标，开始测试";
 }
 function resetTest(){
     document.getElementById("testResult").innerText="";
+    spawnTargets();
 }
 function exportConfig(){
     const cfg={
