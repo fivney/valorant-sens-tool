@@ -31,6 +31,7 @@ canvas{background:#090911;border:1px solid var(--border);cursor:crosshair}
 label{width:140px}
 input{padding:8px;background:#111;border:1px solid var(--border);color:#fff;border-radius:4px}
 .result-box{margin-top:16px;padding:12px;border:1px solid var(--main);border-radius:6px}
+.score-text{font-size:18px;color:#ff4655;font-weight:bold;margin:6px 0;}
 </style>
 </head>
 <body>
@@ -66,13 +67,13 @@ input{padding:8px;background:#111;border:1px solid var(--border);color:#fff;bord
 <div class="result-box" id="baseResult"></div>
 </div>
 
-<!-- 自测面板【完整版靶场】 -->
+<!-- 自测面板 -->
 <div class="panel show" id="test">
 <h2>五维瞄准自测训练场</h2>
 <p class="info-text">点击画布锁定鼠标，完成5项测试；仅电脑端可用，ESC解除鼠标锁定</p >
 <canvas id="gameCanvas" width="820" height="460"></canvas>
 <div style="margin-top:10px">
-<button class="btn" onclick="startTest()">开始整套测试</button>
+<button class="btn" onclick="startTest()">开始整套测试(30s计时)</button>
 <button class="btn gray" onclick="resetTest()">重置测试分数</button>
 <select id="testMode">
 <option value="turn">1.转身校准测试</option>
@@ -82,6 +83,7 @@ input{padding:8px;background:#111;border:1px solid var(--border);color:#fff;bord
 <option value="spray">5.压枪模拟测试</option>
 </select>
 </div>
+<p class="score-text">当前得分：<span id="scoreNum">0</span> | 剩余时间：<span id="timeNum">30</span>s</p >
 <p id="testTip" class="info-text">测试启动，请点击画布锁定鼠标</p >
 <div class="result-box" id="testResult"></div>
 </div>
@@ -89,7 +91,7 @@ input{padding:8px;background:#111;border:1px solid var(--border);color:#fff;bord
 <!-- 灵敏度测算面板 -->
 <div class="panel" id="calc">
 <h2>灵敏度智能推荐</h2>
-<p class="info-text">自测完成后自动生成三套适配方案（手腕流/混合/手臂流）</p >
+<p class="info-text">完成自测后自动生成三套适配方案（手腕流/混合/手臂流）</p >
 <div class="result-box" id="calcResult"></div>
 </div>
 
@@ -138,6 +140,10 @@ let mouseX = canvas.width/2;
 let mouseY = canvas.height/2;
 let targets = [];
 let testMode = "turn";
+let score = 0;
+let testTimer = null;
+let remainTime = 30;
+let testRunning = false;
 
 // 切换测试模式
 document.getElementById("testMode").onchange = function(){
@@ -145,55 +151,63 @@ document.getElementById("testMode").onchange = function(){
     spawnTargets();
 }
 
-// 生成对应测试靶子
+// 生成靶子
 function spawnTargets(){
     targets = [];
     const w = canvas.width;
     const h = canvas.height;
     if(testMode === "turn"){
-        targets.push({x:100,y:h/2,r:12});
-        targets.push({x:w-100,y:h/2,r:12});
+        targets.push({x:100,y:h/2,r:12,baseR:12,vx:0,vy:0,hideTimer:0});
+        targets.push({x:w-100,y:h/2,r:12,baseR:12,vx:0,vy:0,hideTimer:0});
     }else if(testMode === "track"){
-        targets.push({x:w/2,y:h/2,r:14,vx:1.2,vy:0});
+        targets.push({x:w/2,y:h/2,r:14,baseR:14,vx:1.2,vy:0,hideTimer:0});
     }else if(testMode === "flick"){
-        targets.push({x:150,y:120,r:12});
-        targets.push({x:w-150,y:h-120,r:12});
+        targets.push({x:150,y:120,r:12,baseR:12,vx:0,vy:0,hideTimer:0});
+        targets.push({x:w-150,y:h-120,r:12,baseR:12,vx:0,vy:0,hideTimer:0});
     }else if(testMode === "switch"){
-        targets.push({x:120,y:100,r:11});
-        targets.push({x:w-120,y:100,r:11});
-        targets.push({x:120,y:h-100,r:11});
-        targets.push({x:w-120,y:h-100,r:11});
+        targets.push({x:120,y:100,r:11,baseR:11,vx:0,vy:0,hideTimer:0});
+        targets.push({x:w-120,y:100,r:11,baseR:11,vx:0,vy:0,hideTimer:0});
+        targets.push({x:120,y:h-100,r:11,baseR:11,vx:0,vy:0,hideTimer:0});
+        targets.push({x:w-120,y:h-100,r:11,baseR:11,vx:0,vy:0,hideTimer:0});
     }else if(testMode === "spray"){
-        targets.push({x:w/2,y:h/2,r:16});
+        targets.push({x:w/2,y:h/2,r:16,baseR:16,vx:0,vy:0,hideTimer:0});
     }
 }
 
 // 渲染画面
 function draw(){
-    // 背景
     ctx.fillStyle="#090911";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    // 更新移动靶
     targets.forEach(t=>{
+        // 击中倒计时恢复
+        if(t.hideTimer > 0){
+            t.hideTimer--;
+            t.r = 0;
+        }else{
+            t.r = t.baseR;
+        }
+        //移动靶反弹
         if(t.vx){
             t.x += t.vx;
             if(t.x<50 || t.x>canvas.width-50) t.vx *= -1;
         }
         //绘制靶子
-        ctx.beginPath();
-        ctx.arc(t.x,t.y,t.r,0,Math.PI*2);
-        ctx.fillStyle="#ff4655";
-        ctx.fill();
+        if(t.r>0){
+            ctx.beginPath();
+            ctx.arc(t.x,t.y,t.r,0,Math.PI*2);
+            ctx.fillStyle="#ff4655";
+            ctx.fill();
+        }
     })
 
-    //绘制十字准星
+    //准星
     ctx.fillStyle="#ffffff";
     ctx.fillRect(mouseX-10,mouseY-1,20,2);
     ctx.fillRect(mouseX-1,mouseY-10,2,20);
 }
 
-// 鼠标锁定
+//鼠标锁定
 canvas.addEventListener('click',()=>{
     canvas.requestPointerLock();
 })
@@ -211,13 +225,15 @@ document.addEventListener('mousemove',(e)=>{
     mouseY = Math.max(0,Math.min(canvas.height,mouseY));
 })
 
-//鼠标点击命中检测
+//点击命中
 canvas.addEventListener("mousedown",()=>{
-    if(!pointerLocked) return;
+    if(!pointerLocked || !testRunning) return;
     targets.forEach(t=>{
         const dist = Math.hypot(mouseX-t.x,mouseY-t.y);
-        if(dist < t.r){
-            t.r = 0;
+        if(dist < t.r && t.hideTimer === 0){
+            score++;
+            document.getElementById("scoreNum").innerText = score;
+            t.hideTimer = 45; //击中隐藏一段时间自动恢复
         }
     })
 })
@@ -230,7 +246,66 @@ function loop(){
 spawnTargets();
 loop();
 
-// ==========工具函数==========
+// 启动测试计时
+function startTest(){
+    resetTest();
+    testRunning = true;
+    remainTime = 30;
+    document.getElementById("timeNum").innerText = remainTime;
+    if(testTimer) clearInterval(testTimer);
+    testTimer = setInterval(()=>{
+        remainTime--;
+        document.getElementById("timeNum").innerText = remainTime;
+        if(remainTime <= 0){
+            clearInterval(testTimer);
+            testRunning = false;
+            generateSuggest();
+        }
+    },1000)
+    document.getElementById("testTip").innerText="点击画布锁定鼠标，开始30秒测试！";
+}
+
+//生成灵敏度推荐
+function generateSuggest(){
+    const dpi = Number(document.getElementById('dpi').value);
+    let baseSens;
+    let typeDesc;
+    //根据得分判定手感类型
+    if(score >= 32){
+        baseSens = 0.52;
+        typeDesc = "手腕流｜高灵敏度，快速定位，适合突袭、捷风等突进英雄";
+    }else if(score >=18){
+        baseSens = 0.38;
+        typeDesc = "均衡混合流｜兼顾急停跟枪，绝大多数英雄通用";
+    }else{
+        baseSens = 0.26;
+        typeDesc = "手臂流｜低灵敏度，稳定压枪，适合守点、哨卫英雄";
+    }
+    const eDPI = dpi * baseSens;
+    const cm360 = (2.54 * 360) / (eDPI * Math.PI * 2);
+
+    let html = `<h3>✅ 测试完成！总得分：${score}</h3>
+    <p>适配判定：${typeDesc}</p >
+    <div style="margin:10px 0;">
+    <p>【方案1｜主推适配】灵敏度：${baseSens.toFixed(2)} | eDPI:${eDPI.toFixed(1)} | cm/360:${cm360.toFixed(2)}cm</p >
+    <p>【方案2｜偏快手腕】灵敏度：${(baseSens*1.18).toFixed(2)} | eDPI:${(dpi*baseSens*1.18).toFixed(1)}</p >
+    <p>【方案3｜偏慢手臂】灵敏度：${(baseSens*0.82).toFixed(2)} | eDPI:${(dpi*baseSens*0.82).toFixed(1)}</p >
+    </div>
+    <p class="info-text">提示：填入你当前DPI数值生效，可复制灵敏度直接进游戏测试！</p >`;
+    document.getElementById("testResult").innerHTML = html;
+}
+
+function resetTest(){
+    score = 0;
+    remainTime = 30;
+    testRunning = false;
+    document.getElementById("scoreNum").innerText = score;
+    document.getElementById("timeNum").innerText = remainTime;
+    document.getElementById("testResult").innerText = "";
+    if(testTimer) clearInterval(testTimer);
+    spawnTargets();
+}
+
 function calcEDPI(){
     const dpi = Number(document.getElementById('dpi').value);
     const sens = Number(document.getElementById('sens').value);
@@ -242,14 +317,6 @@ function calcEDPI(){
     `
 }
 
-function startTest(){
-    spawnTargets();
-    document.getElementById("testTip").innerText="点击画布锁定鼠标，开始测试";
-}
-function resetTest(){
-    document.getElementById("testResult").innerText="";
-    spawnTargets();
-}
 function exportConfig(){
     const cfg={
         dpi:document.getElementById('dpi').value,
@@ -262,6 +329,7 @@ function exportConfig(){
     a.download="valorant_config.json";
     a.click();
 }
+
 function convertSensitivity(){
     const s = Number(document.getElementById('convertSens').value);
     const val = s * 0.31;
