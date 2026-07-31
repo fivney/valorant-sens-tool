@@ -3,277 +3,208 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Valorant灵准实验室｜灵敏度自测&参数优化工具</title>
+<title>Valorant灵准实验室 | 灵敏度自测&参数优化工具</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",Roboto,sans-serif}
 :root{
-  --main:#9d22ff;
-  --red:#ff4655;
-  --bg:#0f0f17;
-  --panel:#191927;
-  --text:#e8e8f0;
-  --gray:#888899;
-  --border:#33334a;
+    --main:#9d22ff;
+    --red:#ff4655;
+    --bg:#0f0f17;
+    --panel:#191927;
+    --text:#e8e8f0;
+    --gray:#888899;
+    --border:#33334a;
 }
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",Roboto,sans-serif}
 body{background:var(--bg);color:var(--text);padding:16px;max-width:1400px;margin:0 auto}
-header{border-bottom:1px solid var(--border);padding:16px 0;margin-bottom:20px}
+header{border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:20px}
 h1{color:var(--main);font-size:26px}
 .tab-bar{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
-.tab{padding:10px 16px;background:var(--panel);border:1px solid var(--border);cursor:pointer;border-radius:6px;transition:.2s}
+.tab{padding:10px 16px;background:var(--panel);border:1px solid var(--border);cursor:pointer;border-radius:8px}
 .tab.active{background:var(--main);color:#000;border-color:var(--main)}
-.panel{display:none;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px}
+.panel{display:none;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:20px}
 .panel.show{display:block}
-canvas{background:#111;border:1px solid var(--border);border-radius:6px}
-input,select,textarea{background:#12121d;border:1px solid var(--border);color:#fff;padding:8px 10px;border-radius:4px;outline:none}
-button{background:var(--main);color:#000;border:none;padding:9px 16px;border-radius:5px;cursor:pointer;font-weight:bold}
-button.secondary{background:#333;color:#fff}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}
-@media(max-width:900px){.grid{grid-template-columns:1fr}}
-.info{color:var(--gray);font-size:14px;margin:6px 0}
-.result-card{border:1px solid var(--main);padding:14px;border-radius:6px;margin:10px 0}
-.tool-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}
-label{min-width:110px;display:inline-block}
+canvas{background:#090911;border:1px solid var(--border);cursor:crosshair}
+.btn{background:var(--main);color:#000;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:bold;margin:4px}
+.btn.gray{background:#333;color:#fff}
+.info-text{color:var(--gray);margin:8px 0;font-size:14px}
+.input-row{margin:10px 0;display:flex;gap:8px;align-items:center}
+label{width:140px}
+input{padding:8px;background:#111;border:1px solid var(--border);color:#fff;border-radius:4px}
+.result-box{margin-top:16px;padding:12px;border:1px solid var(--main);border-radius:6px}
 </style>
 </head>
 <body>
 <header>
-<h1>🎯 Valorant灵准实验室</h1>
-<p class="info">无畏契约灵敏度五维自测 | 参数优化 | 本地存储，数据不上传</p >
+<h1>Valorant灵准实验室</h1>
+<div class="info-text">无畏契约五维灵敏度自测 | eDPI换算 | 参数优化工具 <br>所有数据本地浏览器存储，不上传云端</div>
 </header>
 
 <div class="tab-bar">
-  <div class="tab active" data-tab="home">首页基础设置</div>
-  <div class="tab" data-tab="test">五维灵敏度自测</div>
-  <div class="tab" data-tab="calc">灵敏度测算 & 方案推荐</div>
-  <div class="tab" data-tab="config">全套参数优化</div>
-  <div class="tab" data-tab="tools">FPS工具合集</div>
+<div class="tab" data-tab="base">首页基础设置</div>
+<div class="tab active" data-tab="test">五维灵敏度自测</div>
+<div class="tab" data-tab="calc">灵敏度测算 & 方案推荐</div>
+<div class="tab" data-tab="opt">全套参数优化</div>
+<div class="tab" data-tab="tools">FPS工具合集</div>
 </div>
 
-<!-- 首页 -->
-<div class="panel show" id="home">
-  <h2>基础信息录入</h2>
-  <div class="grid">
-    <div>
-      <label>鼠标DPI：</label>
-      <input type="number" id="dpi" value="800">
-    </div>
-    <div>
-      <label>游戏内灵敏度：</label>
-      <input type="number" step="0.01" id="sens" value="0.45">
-    </div>
-    <div>
-      <label>操作流派：</label>
-      <select id="flow">
-        <option value="arm">手臂流（大范围移动鼠标）</option>
-        <option value="wrist">手腕流（小范围微动）</option>
-        <option value="mix">混合流</option>
-      </select>
-    </div>
-    <div>
-      <label>垂直灵敏度增强：</label>
-      <input type="number" step="0.01" id="vsens" value="1.00">
-    </div>
-  </div>
-  <br>
-  <button onclick="calcBase()">计算基础参数</button>
-  <div id="baseResult" class="result-card"></div>
-  <p class="info">录入参数后，前往【五维灵敏度自测】开始测试</p >
+<!-- 基础设置面板 -->
+<div class="panel" id="base">
+<h2>基础灵敏度录入</h2>
+<div class="input-row">
+<label>鼠标DPI：</label>
+<input type="number" id="dpi" value="800">
+</div>
+<div class="input-row">
+<label>游戏内灵敏度：</label>
+<input type="number" id="sens" value="0.4" step="0.01">
+</div>
+<div class="input-row">
+<label>游戏FOV：</label>
+<input type="number" id="fov" value="103">
+</div>
+<button class="btn" onclick="calcEDPI()">计算 eDPI / cm/360</button>
+<div class="result-box" id="baseResult"></div>
 </div>
 
-<!-- 自测面板 -->
-<div class="panel" id="test">
-  <h2>五维瞄准自测训练场</h2>
-  <p class="info">点击画布锁定鼠标，完成5项测试；仅电脑端可用</p >
-  <canvas id="testCanvas" width="800" height="420"></canvas>
-  <div class="tool-row" style="margin-top:10px">
-    <button class="secondary" onclick="startTest()">开始整套测试</button>
-    <button class="secondary" onclick="resetTest()">重置测试分数</button>
-  </div>
-  <div id="testLog" class="result-card">测试结果将展示在此</div>
+<!-- 自测面板【修复核心：内置画布准星，锁定鼠标持续渲染】 -->
+<div class="panel show" id="test">
+<h2>五维瞄准自测训练场</h2>
+<p class="info-text">点击画布锁定鼠标，完成5项测试；仅电脑端可用</p >
+<canvas id="gameCanvas" width="820" height="460"></canvas>
+<div style="margin-top:10px">
+<button class="btn" onclick="startTest()">开始整套测试</button>
+<button class="btn gray" onclick="resetTest()">重置测试分数</button>
+</div>
+<p id="testTip" class="info-text">测试启动，请点击画布锁定鼠标</p >
+<div class="result-box" id="testResult"></div>
 </div>
 
-<!-- 灵敏度计算 -->
+<!-- 灵敏度测算面板 -->
 <div class="panel" id="calc">
-  <h2>智能灵敏度测算 & 三套方案推荐</h2>
-  <div class="grid">
-    <div>
-      <h3>换算工具</h3>
-      <label>目标DPI：</label>
-      <input type="number" id="newDpi" value="800">
-      <button onclick="convertSens()" style="margin-left:8px">等价灵敏度换算</button>
-      <div id="convertOut"></div>
-      <br>
-      <label>cm/360：</label>
-      <span id="cm360">--</span>
-      <br>
-      <label>eDPI：</label>
-      <span id="edpi">--</span>
-    </div>
-    <div>
-      <h3>三套推荐方案</h3>
-      <div id="planBox"></div>
-    </div>
-  </div>
+<h2>灵敏度智能推荐</h2>
+<p class="info-text">自测完成后自动生成三套适配方案（手腕流/混合/手臂流）</p >
+<div class="result-box" id="calcResult"></div>
 </div>
 
-<!-- 参数优化 -->
-<div class="panel" id="config">
-  <h2>全套游戏参数优化</h2>
-  <div class="tool-row">
-    <button onclick="saveConfig()">导出配置(JSON)</button>
-    <button class="secondary" onclick="loadConfig()">导入配置</button>
-  </div>
-  <textarea id="configText" style="width:100%;height:160px;margin:10px 0" placeholder="配置文本"></textarea>
-  <h3>优化清单参考</h3>
-  <pre style="color:#ccc;font-size:13px">
-【鼠标设置】
-关闭Windows鼠标加速；开启原始输入；回报率1000Hz
-【画面】
-分辨率按需；关闭不必要特效；限制后台帧数
-【准星】可保存多条准星代码
-【音效】均衡音量，优化脚步声定位
-【按键】静步、技能侧键自定义布局
-  </pre>
+<!-- 参数优化面板 -->
+<div class="panel" id="opt">
+<h2>全套参数优化参考</h2>
+<ul style="padding-left:20px;line-height:1.8">
+<li>鼠标：关闭Windows提高指针精确度</li>
+<li>画面：优化画质档位，降低不必要特效</li>
+<li>准星：提供多类型职业选手准星代码</li>
+<li>按键布局：急停、快捷道具键位建议</li>
+</ul>
+<button class="btn" onclick="exportConfig()">导出当前配置JSON</button>
 </div>
 
-<!-- 工具箱 -->
+<!-- 工具合集 -->
 <div class="panel" id="tools">
-  <h2>FPS实用工具箱</h2>
-  <h3>跨游戏灵敏度转换</h3>
-  <div class="tool-row">
-    <select id="gameFrom">
-      <option value="valorant">无畏契约</option>
-      <option value="cs2">CS2</option>
-      <option value="apex">Apex英雄</option>
-      <option value="aimlab">Aim Lab</option>
-    </select>
-    <span>→</span>
-    <select id="gameTo">
-      <option value="valorant">无畏契约</option>
-      <option value="cs2">CS2</option>
-      <option value="apex">Apex英雄</option>
-      <option value="aimlab">Aim Lab</option>
-    </select>
-    <input type="number" step="0.01" id="gameSens" placeholder="灵敏度">
-    <button onclick="gameConvert()">转换</button>
-  </div>
-  <div id="gameConvertResult"></div>
-  <br>
-  <p class="info">职业选手参数库、瞄准训练方案后续可继续扩充</p >
+<h2>FPS工具合集</h2>
+<p>灵敏度跨游戏转换｜职业选手参数资料库｜瞄准练习方案</p >
+<div class="input-row">
+<label>源游戏灵敏度：</label>
+<input type="number" id="convertSens" value="1">
+</div>
+<button class="btn" onclick="convertSensitivity()">灵敏度换算(CS2 ↔ Valorant)</button>
+<div class="result-box" id="toolResult"></div>
 </div>
 
 <script>
-// 标签切换
-document.querySelectorAll('.tab').forEach(tab=>{
-  tab.onclick=()=>{
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    tab.classList.add('active');
-    const tid=tab.dataset.tab;
-    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
-    document.getElementById(tid).classList.add('show');
-  }
+// 标签切换逻辑
+const tabs = document.querySelectorAll('.tab');
+const panels = document.querySelectorAll('.panel');
+tabs.forEach(t=>{
+    t.onclick=()=>{
+        tabs.forEach(x=>x.classList.remove('active'));
+        panels.forEach(x=>x.classList.remove('show'));
+        t.classList.add('active');
+        document.getElementById(t.dataset.tab).classList.add('show');
+    }
 })
 
-// 本地存储封装
-const STORAGE_KEY = "valo-lab-data";
-function getStorage(){
-  const raw = localStorage.getItem(STORAGE_KEY);
-  return raw ? JSON.parse(raw) : {dpi:800,sens:0.45,flow:"mix",records:[]};
-}
-function setStorage(obj){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+// ========== 画布&准星核心修复代码 ==========
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let pointerLocked = false;
+let mouseX = canvas.width/2;
+let mouseY = canvas.height/2;
+
+// 固定准星绘制函数（锁定鼠标持续渲染）
+function drawCrosshair(){
+    ctx.fillStyle="#fff";
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // 十字准星
+    ctx.fillRect(mouseX-10,mouseY-1,20,2);
+    ctx.fillRect(mouseX-1,mouseY-10,2,20);
 }
 
-// 基础计算公式
-function calcEDPI(dpi,sens){return dpi*sens}
-function calcCM360(dpi,sens){
-  // Valorant Yaw=0.07
-  return 360/(dpi * sens * 0.07 * 2.54);
-}
-
-function calcBase(){
-  const dpi = Number(document.getElementById('dpi').value);
-  const sens = Number(document.getElementById('sens').value);
-  const edpi = calcEDPI(dpi,sens).toFixed(1);
-  const cm360 = calcCM360(dpi,sens).toFixed(2);
-  document.getElementById('edpi').innerText = edpi;
-  document.getElementById('cm360').innerText = cm360;
-  document.getElementById('baseResult').innerHTML = `
-    eDPI：${edpi}<br>
-    cm/360：${cm360} cm<br>
-    含义：鼠标移动 ${cm360} 厘米完成游戏360度转身
-  `;
-  const save = getStorage();
-  save.dpi=dpi;save.sens=sens;
-  setStorage(save);
-}
-
-function convertSens(){
-  const dpi=Number(document.getElementById('dpi').value);
-  const sens=Number(document.getElementById('sens').value);
-  const newDpi=Number(document.getElementById('newDpi').value);
-  const newSens = (dpi*sens)/newDpi;
-  document.getElementById('convertOut').innerText = `等价灵敏度：${newSens.toFixed(4)}`;
-}
-
-// 简易跨游戏转换（基于cm360统一）
-function gameConvert(){
-  const s=Number(document.getElementById('gameSens').value);
-  const from=document.getElementById('gameFrom').value;
-  const to=document.getElementById('gameTo').value;
-  // 内置各游戏换算系数(简化版)
-  const coeff = {
-    valorant:0.07,
-    cs2:0.022,
-    apex:0.022,
-    aimlab:0.022
-  };
-  const dpi = Number(document.getElementById('dpi').value);
-  let cm = 360/(dpi * s * coeff[from] * 2.54);
-  let targetSens = 360/(dpi * cm * coeff[to] * 2.54);
-  document.getElementById('gameConvertResult').innerText =
-    `目标游戏灵敏度：${targetSens.toFixed(4)}`;
-}
-
-// 画布测试基础框架
-const canvas = document.getElementById("testCanvas");
-const ctx = canvas.getContext("2d");
-let pointerLock = false;
-canvas.addEventListener("click",()=>{
-  canvas.requestPointerLock();
+// 鼠标锁定监听
+canvas.addEventListener('click',()=>{
+    canvas.requestPointerLock();
 })
-document.addEventListener("pointerlockchange",()=>{
-  pointerLock = document.pointerLockElement === canvas;
+document.addEventListener('pointerlockchange',()=>{
+    pointerLocked = document.pointerLockElement === canvas;
+    document.getElementById("testTip").innerText = pointerLocked ? "鼠标已锁定，开始瞄准测试" : "鼠标已解除锁定，请点击画布重新锁定";
 })
+
+// 鼠标移动追踪
+document.addEventListener('mousemove',(e)=>{
+    if(!pointerLocked) return;
+    mouseX += e.movementX;
+    mouseY += e.movementY;
+    // 边界限制
+    mouseX = Math.max(0,Math.min(canvas.width,mouseX));
+    mouseY = Math.max(0,Math.min(canvas.height,mouseY));
+})
+
+// 持续刷新画面渲染准星
+function loop(){
+    drawCrosshair();
+    requestAnimationFrame(loop);
+}
+loop();
+
+// ========== 基础功能函数 ==========
+function calcEDPI(){
+    const dpi = Number(document.getElementById('dpi').value);
+    const sens = Number(document.getElementById('sens').value);
+    const edpi = dpi*sens;
+    const cm360 = 2.54 * 360 / (edpi * Math.PI * 2);
+    document.getElementById("baseResult").innerHTML = `
+    <p>eDPI = ${edpi.toFixed(2)}</p >
+    <p>cm/360 = ${cm360.toFixed(3)} cm</p >
+    `
+}
 
 function startTest(){
-  document.getElementById("testLog").innerText = "测试启动，请点击画布锁定鼠标";
+    document.getElementById("testTip").innerText="点击画布锁定鼠标，正式开始五维测试";
 }
 function resetTest(){
-  document.getElementById("testLog").innerText = "测试已重置";
+    document.getElementById("testResult").innerText="";
 }
-
-// 配置导入导出
-function saveConfig(){
-  const data = getStorage();
-  document.getElementById('configText').value = JSON.stringify(data,null,2);
+function exportConfig(){
+    const cfg={
+        dpi:document.getElementById('dpi').value,
+        sens:document.getElementById('sens').value,
+        fov:document.getElementById('fov').value
+    }
+    const blob = new Blob([JSON.stringify(cfg,null,2)],{type:"text/json"});
+    const a = document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download="valorant_config.json";
+    a.click();
 }
-function loadConfig(){
-  try{
-    const txt = document.getElementById('configText').value;
-    const obj = JSON.parse(txt);
-    setStorage(obj);
-    alert("导入成功，刷新页面生效");
-  }catch(e){alert("JSON格式错误")}
+function convertSensitivity(){
+    const s = Number(document.getElementById('convertSens').value);
+    const val = s * 0.31;
+    const cs = s / 0.31;
+    document.getElementById("toolResult").innerHTML=`
+    <p>CS2 → Valorant：${val.toFixed(3)}</p >
+    <p>Valorant → CS2：${cs.toFixed(3)}</p >
+    <p>换算公式：Valorant = CS2灵敏度 × 0.31</p >
+    `
 }
-
-// 初始化加载本地数据
-(function init(){
-  const data = getStorage();
-  document.getElementById('dpi').value = data.dpi;
-  document.getElementById('sens').value = data.sens;
-  document.getElementById('flow').value = data.flow;
-})()
 </script>
 </body>
 </html>
